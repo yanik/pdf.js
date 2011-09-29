@@ -2,7 +2,7 @@
 <html>
     <head>
         <title>Simple pdf.js page viewer</title>
-        <link rel="stylesheet" href="viewer.css"></link>
+        <link rel="stylesheet" href="viewer.css"/>
 
         <script type="text/javascript" src="compatibility.js"></script>
         <script type="text/javascript" src="viewer.js"></script>
@@ -10,6 +10,8 @@
         <script type="text/javascript" src="../fonts.js"></script>
         <script type="text/javascript" src="../crypto.js"></script>
         <script type="text/javascript" src="../glyphlist.js"></script>
+        <script type="text/javascript" src="../metrics.js"></script>
+        <script type="text/javascript" src="../charsets.js"></script>
   </head>
 
   <body>
@@ -26,25 +28,44 @@
 
       <div class="separator"></div>
 
-      <input type="text" id="pageNumber" onchange="PDFView.page = this.value;" value="1" size="4"></input>
+      <input type="text" id="pageNumber" onchange="PDFView.page = this.value;" value="1" size="4"/>
 
       <span>/</span>
       <span id="numPages">--</span>
 
       <div class="separator"></div>
 
-      <select id="scaleSelect" onchange="PDFView.scale = parseInt(this.value);">
-        <option value="50">50%</option>
-        <option value="75">75%</option>
-        <option value="100">100%</option>
-        <option value="125">125%</option>
-        <option value="150" selected="selected"><p>150%</p></option>
-        <option value="200">200%</option>
+      <button id="next" title="Zoom Out" onclick="PDFView.zoomOut();">
+        <img src="images/zoom-out.svg" align="top" height="32"/>
+      </button>
+      <button id="next" title="Zoom In" onclick="PDFView.zoomIn();">
+        <img src="images/zoom-in.svg" align="top" height="32"/>
+      </button>
+
+      <div class="separator"></div>
+
+      <select id="scaleSelect" onchange="PDFView.parseScale(this.value);">
+        <option id="customScaleOption" value="custom"></option>
+        <option value="0.5">50%</option>
+        <option value="0.75">75%</option>
+        <option value="1">100%</option>
+        <option value="1.25">125%</option>
+        <option value="1.5" selected="selected">150%</option>
+        <option value="2">200%</option>
+        <option id="pageWidthOption" value="page-width">Page Width</option>
+        <option id="pageFitOption" value="page-fit">Page Fit</option>
       </select>
 
       <div class="separator"></div>
 
-      <input id="fileInput" type="file"></input>
+      <button id="print" onclick="window.print();">
+        <img src="images/document-print.svg" align="top" height="32"/>
+        Print
+      </button>
+
+      <div class="separator"></div>
+
+      <input id="fileInput" type="file"/>
 
       <div class="separator"></div>
 
@@ -56,9 +77,21 @@
         <div id="sidebarScrollView">
           <div id="sidebarView"></div>
         </div>
+        <div id="outlineScrollView" style="display:none">
+          <div id="outlineView"></div>
+        </div>
+        <div id="sidebarControls">
+          <button id="thumbsSwitch" title="Show Thumbnails" onclick="PDFView.switchSidebarView('thumbs')" data-selected>
+            <img src="images/nav-thumbs.svg" align="top" height="32" alt="Thumbs" />
+          </button>
+          <button id="outlineSwitch" title="Show Document Outline" onclick="PDFView.switchSidebarView('outline')" disabled>
+            <img src="images/nav-outline.svg" align="top" height="32" alt="Document Outline" />
+          </button>
+        </div>
      </div>
     </div>
-
+    
+    <div id="loading">Loading... 0%</div>
     <div id="viewer"></div>
   </body>
 </html>

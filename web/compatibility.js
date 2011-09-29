@@ -1,5 +1,7 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- /
+/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
+
+'use strict';
 
 // Checking if the typed arrays are supported
 (function() {
@@ -10,8 +12,9 @@
     return this.slice(start, end);
   }
 
-  function set_(array, offset) {
-    if (arguments.length < 2) offset = 0;
+  function set_function(array, offset) {
+    if (arguments.length < 2)
+      offset = 0;
     for (var i = 0, n = array.length; i < n; ++i, ++offset)
       this[offset] = array[i] & 0xFF;
   }
@@ -19,15 +22,17 @@
   function TypedArray(arg1) {
     var result;
     if (typeof arg1 === 'number') {
-       result = new Array(arg1);
-       for (var i = 0; i < arg1; ++i)
-         result[i] = 0;
+      result = [];
+      for (var i = 0; i < arg1; ++i)
+        result[i] = 0;
     } else
-       result = arg1.slice(0);
+      result = arg1.slice(0);
+
     result.subarray = subarray;
     result.buffer = result;
     result.byteLength = result.length;
-    result.set = set_;
+    result.set = set_function;
+
     if (typeof arg1 === 'object' && arg1.buffer)
       result.buffer = arg1.buffer;
 
@@ -40,6 +45,7 @@
   // so we can use the TypedArray as well
   window.Uint32Array = TypedArray;
   window.Int32Array = TypedArray;
+  window.Uint16Array = TypedArray;
 })();
 
 // Object.create() ?
@@ -147,10 +153,39 @@
 
   Function.prototype.bind = function(obj) {
     var fn = this, headArgs = Array.prototype.slice.call(arguments, 1);
-    var binded = function(tailArgs) {
-      var args = headArgs.concat(tailArgs);
+    var bound = function() {
+      var args = Array.prototype.concat.apply(headArgs, arguments);
       return fn.apply(obj, args);
     };
-    return binded;
+    return bound;
   };
+})();
+
+// IE9 text/html data URI
+(function() {
+  if (document.documentMode !== 9)
+    return;
+  // overriding the src property
+  var originalSrcDescriptor = Object.getOwnPropertyDescriptor(
+    HTMLIFrameElement.prototype, 'src');
+  Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
+    get: function() { return this.$src; },
+    set: function(src) {
+      this.$src = src;
+      if (src.substr(0, 14) != 'data:text/html') {
+        originalSrcDescriptor.set.call(this, src);
+        return;
+      }
+      // for text/html, using blank document and then
+      // document's open, write, and close operations
+      originalSrcDescriptor.set.call(this, 'about:blank');
+      setTimeout((function() {
+        var doc = this.contentDocument;
+        doc.open('text/html');
+        doc.write(src.substr(src.indexOf(',') + 1));
+        doc.close();
+      }).bind(this), 0);
+    },
+    enumerable: true
+  });
 })();
