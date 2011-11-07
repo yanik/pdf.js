@@ -172,7 +172,6 @@ var Page = (function pagePage() {
       var self = this;
       this.IRQueue = IRQueue;
       var gfx = new CanvasGraphics(this.ctx, this.objs);
-      var startTime = Date.now();
 
       var displayContinuation = function pageDisplayContinuation() {
         // Always defer call to display() to work around bug in
@@ -253,7 +252,6 @@ var Page = (function pagePage() {
       var IRQueue = this.IRQueue;
 
       var self = this;
-      var startTime = Date.now();
       function next() {
         startIdx = gfx.executeIRQueue(IRQueue, startIdx, next);
         if (startIdx == length) {
@@ -10297,7 +10295,6 @@ var ARCFourCipher = (function arcFourCipher() {
       var a = this.a, b = this.b, s = this.s;
       var output = new Uint8Array(n);
       for (i = 0; i < n; ++i) {
-        var tmp;
         a = (a + 1) & 0xFF;
         tmp = s[a];
         b = (b + tmp) & 0xFF;
@@ -10346,8 +10343,8 @@ var calculateMD5 = (function calculateMD5() {
       padded[i] = data[offset++];
     padded[i++] = 0x80;
     n = paddedLength - 8;
-    for (; i < n; ++i)
-      padded[i] = 0;
+    while (i < n)
+      padded[i++] = 0;
     padded[i++] = (length << 3) & 0xFF;
     padded[i++] = (length >> 5) & 0xFF;
     padded[i++] = (length >> 13) & 0xFF;
@@ -10593,12 +10590,12 @@ var AES128Cipher = (function aes128Cipher() {
     state[10] = state[2]; state[6] = t; state[2] = u;
     t = state[15]; u = state[11]; v = state[7]; state[15] = state[3];
     state[11] = t; state[7] = u; state[3] = v;
-    // InvSubBytes
-    for (j = 0; j < 16; ++j)
+    for (j = 0; j < 16; ++j) {
+      // InvSubBytes
       state[j] = inv_s[state[j]];
-    // AddRoundKey
-    for (j = 0; j < 16; ++j)
+      // AddRoundKey
       state[j] ^= key[j];
+    }
     return state;
   }
 
@@ -10742,11 +10739,11 @@ var CipherTransformFactory = (function cipherTransformFactory() {
       cipher = new ARCFourCipher(encryptionKey);
       var checkData = cipher.encryptBlock(calculateMD5(hashData, 0, i));
       n = encryptionKey.length;
-      var derrivedKey = new Uint8Array(n), k;
+      var derivedKey = new Uint8Array(n), k;
       for (j = 1; j <= 19; ++j) {
         for (k = 0; k < n; ++k)
-          derrivedKey[k] = encryptionKey[k] ^ j;
-        cipher = new ARCFourCipher(derrivedKey);
+          derivedKey[k] = encryptionKey[k] ^ j;
+        cipher = new ARCFourCipher(derivedKey);
         checkData = cipher.encryptBlock(checkData);
       }
     } else {
@@ -11014,12 +11011,12 @@ var PartialEvaluator = (function partialEvaluator() {
         var font = xref.fetchIfRef(fontRef);
         assertWellFormed(isDict(font));
         if (!font.translated) {
-          font.translated = self.translateFont(font, xref, resources, handler,
-                        uniquePrefix, dependency);
+          font.translated = self.translateFont(font, xref, resources,
+                                               dependency);
           if (font.translated) {
             // keep track of each font we translated so the caller can
             // load them asynchronously before calling display on a page
-            loadedName = 'font_' + uniquePrefix + ++self.objIdCounter;
+            loadedName = 'font_' + uniquePrefix + (++self.objIdCounter);
             font.translated.properties.loadedName = loadedName;
             font.loadedName = loadedName;
 
@@ -11049,7 +11046,7 @@ var PartialEvaluator = (function partialEvaluator() {
         var h = dict.get('Height', 'H');
 
         if (image instanceof JpegStream) {
-          var objId = 'img_' + uniquePrefix + ++self.objIdCounter;
+          var objId = 'img_' + uniquePrefix + (++self.objIdCounter);
           handler.send('obj', [objId, 'JpegStream', image.getIR()]);
 
           // Add the dependency on the image object.
@@ -11339,7 +11336,7 @@ var PartialEvaluator = (function partialEvaluator() {
         var glyphsWidths = {};
         var widths = xref.fetchIfRef(dict.get('W'));
         if (widths) {
-          var start = 0, end = 0;
+          var start = 0;
           for (var i = 0, ii = widths.length; i < ii; i++) {
             var code = widths[i];
             if (isArray(code)) {
@@ -11579,7 +11576,8 @@ var PartialEvaluator = (function partialEvaluator() {
         // special case for symbols
         var encoding = Encodings.symbolsEncoding.slice();
         for (var i = 0, n = encoding.length, j; i < n; i++) {
-          if (!(j = encoding[i]))
+          j = encoding[i];
+          if (!j)
             continue;
           map[i] = GlyphsUnicode[j] || 0;
         }
@@ -11600,7 +11598,7 @@ var PartialEvaluator = (function partialEvaluator() {
     },
 
     translateFont: function partialEvaluatorTranslateFont(dict, xref, resources,
-                                    queue, handler, uniquePrefix, dependency) {
+                                                          dependency) {
       var baseDict = dict;
       var type = dict.get('Subtype');
       assertWellFormed(isName(type), 'invalid font Subtype');
