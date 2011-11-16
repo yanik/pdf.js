@@ -1495,7 +1495,9 @@ var CanvasGraphics = (function canvasGraphics() {
     setStrokeColor: function canvasGraphicsSetStrokeColor(/*...*/) {
       var cs = this.current.strokeColorSpace;
       var color = cs.getRgb(arguments);
-      this.setStrokeRGBColor.apply(this, color);
+      var color = Util.makeCssRgb.apply(null, cs.getRgb(arguments));
+      this.ctx.strokeStyle = color;
+      this.current.strokeColor = color;
     },
     getColorN_IR_Pattern: function canvasGraphicsGetColorN_IR_Pattern(IR, cs) {
       if (IR[0] == 'TilingPattern') {
@@ -1530,8 +1532,9 @@ var CanvasGraphics = (function canvasGraphics() {
     },
     setFillColor: function canvasGraphicsSetFillColor(/*...*/) {
       var cs = this.current.fillColorSpace;
-      var color = cs.getRgb(arguments);
-      this.setFillRGBColor.apply(this, color);
+      var color = Util.makeCssRgb.apply(null, cs.getRgb(arguments));
+      this.ctx.fillStyle = color;
+      this.current.fillColor = color;
     },
     setFillColorN_IR: function canvasGraphicsSetFillColorN(/*...*/) {
       var cs = this.current.fillColorSpace;
@@ -1543,27 +1546,49 @@ var CanvasGraphics = (function canvasGraphics() {
       }
     },
     setStrokeGray: function canvasGraphicsSetStrokeGray(gray) {
-      this.setStrokeRGBColor(gray, gray, gray);
+      if (!(this.current.strokeColorSpace instanceof DeviceGrayCS))
+        this.current.strokeColorSpace = new DeviceGrayCS();
+
+      var color = Util.makeCssRgb(gray, gray, gray);
+      this.ctx.strokeStyle = color;
+      this.current.strokeColor = color;
     },
     setFillGray: function canvasGraphicsSetFillGray(gray) {
-      this.setFillRGBColor(gray, gray, gray);
+      if (!(this.current.fillColorSpace instanceof DeviceGrayCS))
+        this.current.fillColorSpace = new DeviceGrayCS();
+
+      var color = Util.makeCssRgb(gray, gray, gray);
+      this.ctx.fillStyle = color;
+      this.current.fillColor = color;
     },
     setStrokeRGBColor: function canvasGraphicsSetStrokeRGBColor(r, g, b) {
+      if (!(this.current.strokeColorSpace instanceof DeviceRgbCS))
+        this.current.strokeColorSpace = new DeviceRgbCS();
+
       var color = Util.makeCssRgb(r, g, b);
       this.ctx.strokeStyle = color;
       this.current.strokeColor = color;
     },
     setFillRGBColor: function canvasGraphicsSetFillRGBColor(r, g, b) {
+      if (!(this.current.fillColorSpace instanceof DeviceRgbCS))
+        this.current.fillColorSpace = new DeviceRgbCS();
+
       var color = Util.makeCssRgb(r, g, b);
       this.ctx.fillStyle = color;
       this.current.fillColor = color;
     },
     setStrokeCMYKColor: function canvasGraphicsSetStrokeCMYKColor(c, m, y, k) {
+      if (!(this.current.strokeColorSpace instanceof DeviceCmykCS))
+        this.current.strokeColorSpace = new DeviceCmykCS();
+
       var color = Util.makeCssCmyk(c, m, y, k);
       this.ctx.strokeStyle = color;
       this.current.strokeColor = color;
     },
     setFillCMYKColor: function canvasGraphicsSetFillCMYKColor(c, m, y, k) {
+      if (!(this.current.fillColorSpace instanceof DeviceCmykCS))
+        this.current.fillColorSpace = new DeviceCmykCS();
+
       var color = Util.makeCssCmyk(c, m, y, k);
       this.ctx.fillStyle = color;
       this.current.fillColor = color;
@@ -11392,7 +11417,9 @@ var PartialEvaluator = (function partialEvaluator() {
       var cmapObj = xref.fetchIfRef(toUnicode);
       var charToUnicode = [];
       if (isName(cmapObj)) {
-        error('ToUnicode file cmap translation not implemented');
+        var isIdentityMap = cmapObj.name.substr(0, 9) == 'Identity-';
+        if (!isIdentityMap)
+          error('ToUnicode file cmap translation not implemented');
       } else if (isStream(cmapObj)) {
         var tokens = [];
         var token = '';
