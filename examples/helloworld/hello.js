@@ -7,6 +7,9 @@
 
 'use strict';
 
+var title = document.getElementById('titre');
+print(title.value);
+
 PDFJS.getPdf('helloworld.pdf', function getPdfHelloWorld(data) {
   //
   // Instantiate PDFDoc with PDF data
