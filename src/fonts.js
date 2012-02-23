@@ -11,6 +11,7 @@ var kMaxWaitForFontFace = 1000;
 // Unicode Private Use Area
 var kCmapGlyphOffset = 0xE000;
 var kSizeOfGlyphArea = 0x1900;
+var kSymbolicFontGlyphOffset = 0xF000;
 
 // PDF Glyph Space Units are one Thousandth of a TextSpace Unit
 // except for Type 3 fonts
@@ -19,269 +20,254 @@ var kPDFGlyphSpaceUnits = 1000;
 // Until hinting is fully supported this constant can be used
 var kHintingEnabled = false;
 
+var FontFlags = {
+  FixedPitch: 1,
+  Serif: 2,
+  Symbolic: 4,
+  Script: 8,
+  Nonsymbolic: 32,
+  Italic: 64,
+  AllCap: 65536,
+  SmallCap: 131072,
+  ForceBold: 262144
+};
+
 var Encodings = {
-  get ExpertEncoding() {
-    return shadow(this, 'ExpertEncoding', ['', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', 'space', 'exclamsmall', 'Hungarumlautsmall', '',
-      'dollaroldstyle', 'dollarsuperior', 'ampersandsmall', 'Acutesmall',
-      'parenleftsuperior', 'parenrightsuperior', 'twodotenleader',
-      'onedotenleader', 'comma', 'hyphen', 'period', 'fraction',
-      'zerooldstyle', 'oneoldstyle', 'twooldstyle', 'threeoldstyle',
-      'fouroldstyle', 'fiveoldstyle', 'sixoldstyle', 'sevenoldstyle',
-      'eightoldstyle', 'nineoldstyle', 'colon', 'semicolon', 'commasuperior',
-      'threequartersemdash', 'periodsuperior', 'questionsmall', '',
-      'asuperior', 'bsuperior', 'centsuperior', 'dsuperior', 'esuperior', '',
-      '', 'isuperior', '', '', 'lsuperior', 'msuperior', 'nsuperior',
-      'osuperior', '', '', 'rsuperior', 'ssuperior', 'tsuperior', '', 'ff',
-      'fi', 'fl', 'ffi', 'ffl', 'parenleftinferior', '', 'parenrightinferior',
-      'Circumflexsmall', 'hyphensuperior', 'Gravesmall', 'Asmall', 'Bsmall',
-      'Csmall', 'Dsmall', 'Esmall', 'Fsmall', 'Gsmall', 'Hsmall', 'Ismall',
-      'Jsmall', 'Ksmall', 'Lsmall', 'Msmall', 'Nsmall', 'Osmall', 'Psmall',
-      'Qsmall', 'Rsmall', 'Ssmall', 'Tsmall', 'Usmall', 'Vsmall', 'Wsmall',
-      'Xsmall', 'Ysmall', 'Zsmall', 'colonmonetary', 'onefitted', 'rupiah',
-      'Tildesmall', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', 'exclamdownsmall', 'centoldstyle', 'Lslashsmall', '', '',
-      'Scaronsmall', 'Zcaronsmall', 'Dieresissmall', 'Brevesmall',
-      'Caronsmall', '', 'Dotaccentsmall', '', '', 'Macronsmall', '', '',
-      'figuredash', 'hypheninferior', '', '', 'Ogoneksmall', 'Ringsmall',
-      'Cedillasmall', '', '', '', 'onequarter', 'onehalf', 'threequarters',
-      'questiondownsmall', 'oneeighth', 'threeeighths', 'fiveeighths',
-      'seveneighths', 'onethird', 'twothirds', '', '', 'zerosuperior',
-      'onesuperior', 'twosuperior', 'threesuperior', 'foursuperior',
-      'fivesuperior', 'sixsuperior', 'sevensuperior', 'eightsuperior',
-      'ninesuperior', 'zeroinferior', 'oneinferior', 'twoinferior',
-      'threeinferior', 'fourinferior', 'fiveinferior', 'sixinferior',
-      'seveninferior', 'eightinferior', 'nineinferior', 'centinferior',
-      'dollarinferior', 'periodinferior', 'commainferior', 'Agravesmall',
-      'Aacutesmall', 'Acircumflexsmall', 'Atildesmall', 'Adieresissmall',
-      'Aringsmall', 'AEsmall', 'Ccedillasmall', 'Egravesmall', 'Eacutesmall',
-      'Ecircumflexsmall', 'Edieresissmall', 'Igravesmall', 'Iacutesmall',
-      'Icircumflexsmall', 'Idieresissmall', 'Ethsmall', 'Ntildesmall',
-      'Ogravesmall', 'Oacutesmall', 'Ocircumflexsmall', 'Otildesmall',
-      'Odieresissmall', 'OEsmall', 'Oslashsmall', 'Ugravesmall', 'Uacutesmall',
-      'Ucircumflexsmall', 'Udieresissmall', 'Yacutesmall', 'Thornsmall',
-      'Ydieresissmall'
-    ]);
-  },
-  get MacExpertEncoding() {
-    return shadow(this, 'MacExpertEncoding', ['', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', 'space', 'exclamsmall', 'Hungarumlautsmall',
-      'centoldstyle', 'dollaroldstyle', 'dollarsuperior', 'ampersandsmall',
-      'Acutesmall', 'parenleftsuperior', 'parenrightsuperior',
-      'twodotenleader', 'onedotenleader', 'comma', 'hyphen', 'period',
-      'fraction', 'zerooldstyle', 'oneoldstyle', 'twooldstyle',
-      'threeoldstyle', 'fouroldstyle', 'fiveoldstyle', 'sixoldstyle',
-      'sevenoldstyle', 'eightoldstyle', 'nineoldstyle', 'colon', 'semicolon',
-      '', 'threequartersemdash', '', 'questionsmall', '', '', '', '',
-      'Ethsmall', '', '', 'onequarter', 'onehalf', 'threequarters',
-      'oneeighth', 'threeeighths', 'fiveeighths', 'seveneighths', 'onethird',
-      'twothirds', '', '', '', '', '', '', 'ff', 'fi', 'fl', 'ffi', 'ffl',
-      'parenleftinferior', '', 'parenrightinferior', 'Circumflexsmall',
-      'hypheninferior', 'Gravesmall', 'Asmall', 'Bsmall', 'Csmall', 'Dsmall',
-      'Esmall', 'Fsmall', 'Gsmall', 'Hsmall', 'Ismall', 'Jsmall', 'Ksmall',
-      'Lsmall', 'Msmall', 'Nsmall', 'Osmall', 'Psmall', 'Qsmall', 'Rsmall',
-      'Ssmall', 'Tsmall', 'Usmall', 'Vsmall', 'Wsmall', 'Xsmall', 'Ysmall',
-      'Zsmall', 'colonmonetary', 'onefitted', 'rupiah', 'Tildesmall', '', '',
-      'asuperior', 'centsuperior', '', '', '', '', 'Aacutesmall',
-      'Agravesmall', 'Acircumflexsmall', 'Adieresissmall', 'Atildesmall',
-      'Aringsmall', 'Ccedillasmall', 'Eacutesmall', 'Egravesmall',
-      'Ecircumflexsmall', 'Edieresissmall', 'Iacutesmall', 'Igravesmall',
-      'Icircumflexsmall', 'Idieresissmall', 'Ntildesmall', 'Oacutesmall',
-      'Ogravesmall', 'Ocircumflexsmall', 'Odieresissmall', 'Otildesmall',
-      'Uacutesmall', 'Ugravesmall', 'Ucircumflexsmall', 'Udieresissmall', '',
-      'eightsuperior', 'fourinferior', 'threeinferior', 'sixinferior',
-      'eightinferior', 'seveninferior', 'Scaronsmall', '', 'centinferior',
-      'twoinferior', '', 'Dieresissmall', '', 'Caronsmall', 'osuperior',
-      'fiveinferior', '', 'commainferior', 'periodinferior', 'Yacutesmall', '',
-      'dollarinferior', '', 'Thornsmall', '', 'nineinferior', 'zeroinferior',
-      'Zcaronsmall', 'AEsmall', 'Oslashsmall', 'questiondownsmall',
-      'oneinferior', 'Lslashsmall', '', '', '', '', '', '', 'Cedillasmall', '',
-      '', '', '', '', 'OEsmall', 'figuredash', 'hyphensuperior', '', '', '',
-      '', 'exclamdownsmall', '', 'Ydieresissmall', '', 'onesuperior',
-      'twosuperior', 'threesuperior', 'foursuperior', 'fivesuperior',
-      'sixsuperior', 'sevensuperior', 'ninesuperior', 'zerosuperior', '',
-      'esuperior', 'rsuperior', 'tsuperior', '', '', 'isuperior', 'ssuperior',
-      'dsuperior', '', '', '', '', '', 'lsuperior', 'Ogoneksmall',
-      'Brevesmall', 'Macronsmall', 'bsuperior', 'nsuperior', 'msuperior',
-      'commasuperior', 'periodsuperior', 'Dotaccentsmall', 'Ringsmall'
-    ]);
-  },
-  get MacRomanEncoding() {
-    return shadow(this, 'MacRomanEncoding', ['', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', 'space', 'exclam', 'quotedbl', 'numbersign',
-      'dollar', 'percent', 'ampersand', 'quotesingle', 'parenleft',
-      'parenright', 'asterisk', 'plus', 'comma', 'hyphen', 'period', 'slash',
-      'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
-      'nine', 'colon', 'semicolon', 'less', 'equal', 'greater', 'question',
-      'at', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-      'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-      'bracketleft', 'backslash', 'bracketright', 'asciicircum', 'underscore',
-      'grave', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-      'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-      'braceleft', 'bar', 'braceright', 'asciitilde', '', 'Adieresis', 'Aring',
-      'Ccedilla', 'Eacute', 'Ntilde', 'Odieresis', 'Udieresis', 'aacute',
-      'agrave', 'acircumflex', 'adieresis', 'atilde', 'aring', 'ccedilla',
-      'eacute', 'egrave', 'ecircumflex', 'edieresis', 'iacute', 'igrave',
-      'icircumflex', 'idieresis', 'ntilde', 'oacute', 'ograve', 'ocircumflex',
-      'odieresis', 'otilde', 'uacute', 'ugrave', 'ucircumflex', 'udieresis',
-      'dagger', 'degree', 'cent', 'sterling', 'section', 'bullet', 'paragraph',
-      'germandbls', 'registered', 'copyright', 'trademark', 'acute',
-      'dieresis', 'notequal', 'AE', 'Oslash', 'infinity', 'plusminus',
-      'lessequal', 'greaterequal', 'yen', 'mu', 'partialdiff', 'summation',
-      'product', 'pi', 'integral', 'ordfeminine', 'ordmasculine', 'Omega',
-      'ae', 'oslash', 'questiondown', 'exclamdown', 'logicalnot', 'radical',
-      'florin', 'approxequal', 'Delta', 'guillemotleft', 'guillemotright',
-      'ellipsis', 'space', 'Agrave', 'Atilde', 'Otilde', 'OE', 'oe', 'endash',
-      'emdash', 'quotedblleft', 'quotedblright', 'quoteleft', 'quoteright',
-      'divide', 'lozenge', 'ydieresis', 'Ydieresis', 'fraction', 'currency',
-      'guilsinglleft', 'guilsinglright', 'fi', 'fl', 'daggerdbl',
-      'periodcentered', 'quotesinglbase', 'quotedblbase', 'perthousand',
-      'Acircumflex', 'Ecircumflex', 'Aacute', 'Edieresis', 'Egrave', 'Iacute',
-      'Icircumflex', 'Idieresis', 'Igrave', 'Oacute', 'Ocircumflex', 'apple',
-      'Ograve', 'Uacute', 'Ucircumflex', 'Ugrave', 'dotlessi', 'circumflex',
-      'tilde', 'macron', 'breve', 'dotaccent', 'ring', 'cedilla',
-      'hungarumlaut', 'ogonek', 'caron'
-    ]);
-  },
-  get StandardEncoding() {
-    return shadow(this, 'StandardEncoding', ['', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', 'space', 'exclam', 'quotedbl', 'numbersign',
-      'dollar', 'percent', 'ampersand', 'quoteright', 'parenleft',
-      'parenright', 'asterisk', 'plus', 'comma', 'hyphen', 'period', 'slash',
-      'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
-      'nine', 'colon', 'semicolon', 'less', 'equal', 'greater', 'question',
-      'at', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-      'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-      'bracketleft', 'backslash', 'bracketright', 'asciicircum', 'underscore',
-      'quoteleft', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
-      'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-      'braceleft', 'bar', 'braceright', 'asciitilde', '', '', 'exclamdown',
-      'cent', 'sterling', 'fraction', 'yen', 'florin', 'section', 'currency',
-      'quotesingle', 'quotedblleft', 'guillemotleft', 'guilsinglleft',
-      'guilsinglright', 'fi', 'fl', '', 'endash', 'dagger', 'daggerdbl',
-      'periodcentered', '', 'paragraph', 'bullet', 'quotesinglbase',
-      'quotedblbase', 'quotedblright', 'guillemotright', 'ellipsis',
-      'perthousand', '', 'questiondown', '', 'grave', 'acute', 'circumflex',
-      'tilde', 'macron', 'breve', 'dotaccent', 'dieresis', '', 'ring',
-      'cedilla', '', 'hungarumlaut', 'ogonek', 'caron', 'emdash', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', 'AE', '',
-      'ordfeminine', '', '', '', '', 'Lslash', 'Oslash', 'OE', 'ordmasculine',
-      '', '', '', '', '', 'ae', '', '', '', 'dotlessi', '', '', 'lslash',
-      'oslash', 'oe', 'germandbls'
-    ]);
-  },
-  get WinAnsiEncoding() {
-    return shadow(this, 'WinAnsiEncoding', ['', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', 'space', 'exclam', 'quotedbl', 'numbersign',
-      'dollar', 'percent', 'ampersand', 'quotesingle', 'parenleft',
-      'parenright', 'asterisk', 'plus', 'comma', 'hyphen', 'period', 'slash',
-      'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
-      'nine', 'colon', 'semicolon', 'less', 'equal', 'greater', 'question',
-      'at', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-      'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-      'bracketleft', 'backslash', 'bracketright', 'asciicircum', 'underscore',
-      'grave', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-      'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-      'braceleft', 'bar', 'braceright', 'asciitilde', 'bullet', 'Euro',
-      'bullet', 'quotesinglbase', 'florin', 'quotedblbase', 'ellipsis',
-      'dagger', 'daggerdbl', 'circumflex', 'perthousand', 'Scaron',
-      'guilsinglleft', 'OE', 'bullet', 'Zcaron', 'bullet', 'bullet',
-      'quoteleft', 'quoteright', 'quotedblleft', 'quotedblright', 'bullet',
-      'endash', 'emdash', 'tilde', 'trademark', 'scaron', 'guilsinglright',
-      'oe', 'bullet', 'zcaron', 'Ydieresis', 'space', 'exclamdown', 'cent',
-      'sterling', 'currency', 'yen', 'brokenbar', 'section', 'dieresis',
-      'copyright', 'ordfeminine', 'guillemotleft', 'logicalnot', 'hyphen',
-      'registered', 'macron', 'degree', 'plusminus', 'twosuperior',
-      'threesuperior', 'acute', 'mu', 'paragraph', 'periodcentered',
-      'cedilla', 'onesuperior', 'ordmasculine', 'guillemotright', 'onequarter',
-      'onehalf', 'threequarters', 'questiondown', 'Agrave', 'Aacute',
-      'Acircumflex', 'Atilde', 'Adieresis', 'Aring', 'AE', 'Ccedilla',
-      'Egrave', 'Eacute', 'Ecircumflex', 'Edieresis', 'Igrave', 'Iacute',
-      'Icircumflex', 'Idieresis', 'Eth', 'Ntilde', 'Ograve', 'Oacute',
-      'Ocircumflex', 'Otilde', 'Odieresis', 'multiply', 'Oslash', 'Ugrave',
-      'Uacute', 'Ucircumflex', 'Udieresis', 'Yacute', 'Thorn', 'germandbls',
-      'agrave', 'aacute', 'acircumflex', 'atilde', 'adieresis', 'aring', 'ae',
-      'ccedilla', 'egrave', 'eacute', 'ecircumflex', 'edieresis', 'igrave',
-      'iacute', 'icircumflex', 'idieresis', 'eth', 'ntilde', 'ograve',
-      'oacute', 'ocircumflex', 'otilde', 'odieresis', 'divide', 'oslash',
-      'ugrave', 'uacute', 'ucircumflex', 'udieresis', 'yacute', 'thorn',
-      'ydieresis'
-    ]);
-  },
-  get symbolsEncoding() {
-    return shadow(this, 'symbolsEncoding', ['', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', 'space', 'exclam', 'universal', 'numbersign',
-      'existential', 'percent', 'ampersand', 'suchthat', 'parenleft',
-      'parenright', 'asteriskmath', 'plus', 'comma', 'minus', 'period',
-      'slash', 'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
-      'eight', 'nine', 'colon', 'semicolon', 'less', 'equal', 'greater',
-      'question', 'congruent', 'Alpha', 'Beta', 'Chi', 'Delta', 'Epsilon',
-      'Phi', 'Gamma', 'Eta', 'Iota', 'theta1', 'Kappa', 'Lambda', 'Mu', 'Nu',
-      'Omicron', 'Pi', 'Theta', 'Rho', 'Sigma', 'Tau', 'Upsilon', 'sigma1',
-      'Omega', 'Xi', 'Psi', 'Zeta', 'bracketleft', 'therefore', 'bracketright',
-      'perpendicular', 'underscore', 'radicalex', 'alpha', 'beta', 'chi',
-      'delta', 'epsilon', 'phi', 'gamma', 'eta', 'iota', 'phi1', 'kappa',
-      'lambda', 'mu', 'nu', 'omicron', 'pi', 'theta', 'rho', 'sigma', 'tau',
-      'upsilon', 'omega1', 'omega', 'xi', 'psi', 'zeta', 'braceleft', 'bar',
-      'braceright', 'similar', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', 'Euro', 'Upsilon1', 'minute', 'lessequal', 'fraction',
-      'infinity', 'florin', 'club', 'diamond', 'heart', 'spade', 'arrowboth',
-      'arrowleft', 'arrowup', 'arrowright', 'arrowdown', 'degree', 'plusminus',
-      'second', 'greaterequal', 'multiply', 'proportional', 'partialdiff',
-      'bullet', 'divide', 'notequal', 'equivalence', 'approxequal', 'ellipsis',
-      'arrowvertex', 'arrowhorizex', 'carriagereturn', 'aleph', 'Ifraktur',
-      'Rfraktur', 'weierstrass', 'circlemultiply', 'circleplus', 'emptyset',
-      'intersection', 'union', 'propersuperset', 'reflexsuperset', 'notsubset',
-      'propersubset', 'reflexsubset', 'element', 'notelement', 'angle',
-      'gradient', 'registerserif', 'copyrightserif', 'trademarkserif',
-      'product', 'radical', 'dotmath', 'logicalnot', 'logicaland', 'logicalor',
-      'arrowdblboth', 'arrowdblleft', 'arrowdblup', 'arrowdblright',
-      'arrowdbldown', 'lozenge', 'angleleft', 'registersans', 'copyrightsans',
-      'trademarksans', 'summation', 'parenlefttp', 'parenleftex',
-      'parenleftbt', 'bracketlefttp', 'bracketleftex', 'bracketleftbt',
-      'bracelefttp', 'braceleftmid', 'braceleftbt', 'braceex', '',
-      'angleright', 'integral', 'integraltp', 'integralex', 'integralbt',
-      'parenrighttp', 'parenrightex', 'parenrightbt', 'bracketrighttp',
-      'bracketrightex', 'bracketrightbt', 'bracerighttp', 'bracerightmid',
-      'bracerightbt'
-    ]);
-  },
-  get zapfDingbatsEncoding() {
-    return shadow(this, 'zapfDingbatsEncoding', ['', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', 'space', 'a1', 'a2', 'a202', 'a3', 'a4',
-      'a5', 'a119', 'a118', 'a117', 'a11', 'a12', 'a13', 'a14', 'a15', 'a16',
-      'a105', 'a17', 'a18', 'a19', 'a20', 'a21', 'a22', 'a23', 'a24', 'a25',
-      'a26', 'a27', 'a28', 'a6', 'a7', 'a8', 'a9', 'a10', 'a29', 'a30', 'a31',
-      'a32', 'a33', 'a34', 'a35', 'a36', 'a37', 'a38', 'a39', 'a40', 'a41',
-      'a42', 'a43', 'a44', 'a45', 'a46', 'a47', 'a48', 'a49', 'a50', 'a51',
-      'a52', 'a53', 'a54', 'a55', 'a56', 'a57', 'a58', 'a59', 'a60', 'a61',
-      'a62', 'a63', 'a64', 'a65', 'a66', 'a67', 'a68', 'a69', 'a70', 'a71',
-      'a72', 'a73', 'a74', 'a203', 'a75', 'a204', 'a76', 'a77', 'a78', 'a79',
-      'a81', 'a82', 'a83', 'a84', 'a97', 'a98', 'a99', 'a100', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-      '', '', '', '', '', '', '', '', '', '', '', '', 'a101', 'a102', 'a103',
-      'a104', 'a106', 'a107', 'a108', 'a112', 'a111', 'a110', 'a109', 'a120',
-      'a121', 'a122', 'a123', 'a124', 'a125', 'a126', 'a127', 'a128', 'a129',
-      'a130', 'a131', 'a132', 'a133', 'a134', 'a135', 'a136', 'a137', 'a138',
-      'a139', 'a140', 'a141', 'a142', 'a143', 'a144', 'a145', 'a146', 'a147',
-      'a148', 'a149', 'a150', 'a151', 'a152', 'a153', 'a154', 'a155', 'a156',
-      'a157', 'a158', 'a159', 'a160', 'a161', 'a163', 'a164', 'a196', 'a165',
-      'a192', 'a166', 'a167', 'a168', 'a169', 'a170', 'a171', 'a172', 'a173',
-      'a162', 'a174', 'a175', 'a176', 'a177', 'a178', 'a179', 'a193', 'a180',
-      'a199', 'a181', 'a200', 'a182', '', 'a201', 'a183', 'a184', 'a197',
-      'a185', 'a194', 'a198', 'a186', 'a195', 'a187', 'a188', 'a189', 'a190',
-      'a191'
-    ]);
-  }
+  ExpertEncoding: ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    'space', 'exclamsmall', 'Hungarumlautsmall', '', 'dollaroldstyle',
+    'dollarsuperior', 'ampersandsmall', 'Acutesmall', 'parenleftsuperior',
+    'parenrightsuperior', 'twodotenleader', 'onedotenleader', 'comma',
+    'hyphen', 'period', 'fraction', 'zerooldstyle', 'oneoldstyle',
+    'twooldstyle', 'threeoldstyle', 'fouroldstyle', 'fiveoldstyle',
+    'sixoldstyle', 'sevenoldstyle', 'eightoldstyle', 'nineoldstyle', 'colon',
+    'semicolon', 'commasuperior', 'threequartersemdash', 'periodsuperior',
+    'questionsmall', '', 'asuperior', 'bsuperior', 'centsuperior', 'dsuperior',
+    'esuperior', '', '', 'isuperior', '', '', 'lsuperior', 'msuperior',
+    'nsuperior', 'osuperior', '', '', 'rsuperior', 'ssuperior', 'tsuperior',
+    '', 'ff', 'fi', 'fl', 'ffi', 'ffl', 'parenleftinferior', '',
+    'parenrightinferior', 'Circumflexsmall', 'hyphensuperior', 'Gravesmall',
+    'Asmall', 'Bsmall', 'Csmall', 'Dsmall', 'Esmall', 'Fsmall', 'Gsmall',
+    'Hsmall', 'Ismall', 'Jsmall', 'Ksmall', 'Lsmall', 'Msmall', 'Nsmall',
+    'Osmall', 'Psmall', 'Qsmall', 'Rsmall', 'Ssmall', 'Tsmall', 'Usmall',
+    'Vsmall', 'Wsmall', 'Xsmall', 'Ysmall', 'Zsmall', 'colonmonetary',
+    'onefitted', 'rupiah', 'Tildesmall', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', 'exclamdownsmall', 'centoldstyle', 'Lslashsmall',
+    '', '', 'Scaronsmall', 'Zcaronsmall', 'Dieresissmall', 'Brevesmall',
+    'Caronsmall', '', 'Dotaccentsmall', '', '', 'Macronsmall', '', '',
+    'figuredash', 'hypheninferior', '', '', 'Ogoneksmall', 'Ringsmall',
+    'Cedillasmall', '', '', '', 'onequarter', 'onehalf', 'threequarters',
+    'questiondownsmall', 'oneeighth', 'threeeighths', 'fiveeighths',
+    'seveneighths', 'onethird', 'twothirds', '', '', 'zerosuperior',
+    'onesuperior', 'twosuperior', 'threesuperior', 'foursuperior',
+    'fivesuperior', 'sixsuperior', 'sevensuperior', 'eightsuperior',
+    'ninesuperior', 'zeroinferior', 'oneinferior', 'twoinferior',
+    'threeinferior', 'fourinferior', 'fiveinferior', 'sixinferior',
+    'seveninferior', 'eightinferior', 'nineinferior', 'centinferior',
+    'dollarinferior', 'periodinferior', 'commainferior', 'Agravesmall',
+    'Aacutesmall', 'Acircumflexsmall', 'Atildesmall', 'Adieresissmall',
+    'Aringsmall', 'AEsmall', 'Ccedillasmall', 'Egravesmall', 'Eacutesmall',
+    'Ecircumflexsmall', 'Edieresissmall', 'Igravesmall', 'Iacutesmall',
+    'Icircumflexsmall', 'Idieresissmall', 'Ethsmall', 'Ntildesmall',
+    'Ogravesmall', 'Oacutesmall', 'Ocircumflexsmall', 'Otildesmall',
+    'Odieresissmall', 'OEsmall', 'Oslashsmall', 'Ugravesmall', 'Uacutesmall',
+    'Ucircumflexsmall', 'Udieresissmall', 'Yacutesmall', 'Thornsmall',
+    'Ydieresissmall'],
+  MacExpertEncoding: ['', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    'space', 'exclamsmall', 'Hungarumlautsmall', 'centoldstyle',
+    'dollaroldstyle', 'dollarsuperior', 'ampersandsmall', 'Acutesmall',
+    'parenleftsuperior', 'parenrightsuperior', 'twodotenleader',
+    'onedotenleader', 'comma', 'hyphen', 'period', 'fraction', 'zerooldstyle',
+    'oneoldstyle', 'twooldstyle', 'threeoldstyle', 'fouroldstyle',
+    'fiveoldstyle', 'sixoldstyle', 'sevenoldstyle', 'eightoldstyle',
+    'nineoldstyle', 'colon', 'semicolon', '', 'threequartersemdash', '',
+    'questionsmall', '', '', '', '', 'Ethsmall', '', '', 'onequarter',
+    'onehalf', 'threequarters', 'oneeighth', 'threeeighths', 'fiveeighths',
+    'seveneighths', 'onethird', 'twothirds', '', '', '', '', '', '', 'ff',
+    'fi', 'fl', 'ffi', 'ffl', 'parenleftinferior', '', 'parenrightinferior',
+    'Circumflexsmall', 'hypheninferior', 'Gravesmall', 'Asmall', 'Bsmall',
+    'Csmall', 'Dsmall', 'Esmall', 'Fsmall', 'Gsmall', 'Hsmall', 'Ismall',
+    'Jsmall', 'Ksmall', 'Lsmall', 'Msmall', 'Nsmall', 'Osmall', 'Psmall',
+    'Qsmall', 'Rsmall', 'Ssmall', 'Tsmall', 'Usmall', 'Vsmall', 'Wsmall',
+    'Xsmall', 'Ysmall', 'Zsmall', 'colonmonetary', 'onefitted', 'rupiah',
+    'Tildesmall', '', '', 'asuperior', 'centsuperior', '', '', '', '',
+    'Aacutesmall', 'Agravesmall', 'Acircumflexsmall', 'Adieresissmall',
+    'Atildesmall', 'Aringsmall', 'Ccedillasmall', 'Eacutesmall', 'Egravesmall',
+    'Ecircumflexsmall', 'Edieresissmall', 'Iacutesmall', 'Igravesmall',
+    'Icircumflexsmall', 'Idieresissmall', 'Ntildesmall', 'Oacutesmall',
+    'Ogravesmall', 'Ocircumflexsmall', 'Odieresissmall', 'Otildesmall',
+    'Uacutesmall', 'Ugravesmall', 'Ucircumflexsmall', 'Udieresissmall', '',
+    'eightsuperior', 'fourinferior', 'threeinferior', 'sixinferior',
+    'eightinferior', 'seveninferior', 'Scaronsmall', '', 'centinferior',
+    'twoinferior', '', 'Dieresissmall', '', 'Caronsmall', 'osuperior',
+    'fiveinferior', '', 'commainferior', 'periodinferior', 'Yacutesmall', '',
+    'dollarinferior', '', 'Thornsmall', '', 'nineinferior', 'zeroinferior',
+    'Zcaronsmall', 'AEsmall', 'Oslashsmall', 'questiondownsmall',
+    'oneinferior', 'Lslashsmall', '', '', '', '', '', '', 'Cedillasmall', '',
+    '', '', '', '', 'OEsmall', 'figuredash', 'hyphensuperior', '', '', '', '',
+    'exclamdownsmall', '', 'Ydieresissmall', '', 'onesuperior', 'twosuperior',
+    'threesuperior', 'foursuperior', 'fivesuperior', 'sixsuperior',
+    'sevensuperior', 'ninesuperior', 'zerosuperior', '', 'esuperior',
+    'rsuperior', 'tsuperior', '', '', 'isuperior', 'ssuperior', 'dsuperior',
+    '', '', '', '', '', 'lsuperior', 'Ogoneksmall', 'Brevesmall',
+    'Macronsmall', 'bsuperior', 'nsuperior', 'msuperior', 'commasuperior',
+    'periodsuperior', 'Dotaccentsmall', 'Ringsmall'],
+  MacRomanEncoding: ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    'space', 'exclam', 'quotedbl', 'numbersign', 'dollar', 'percent',
+    'ampersand', 'quotesingle', 'parenleft', 'parenright', 'asterisk', 'plus',
+    'comma', 'hyphen', 'period', 'slash', 'zero', 'one', 'two', 'three',
+    'four', 'five', 'six', 'seven', 'eight', 'nine', 'colon', 'semicolon',
+    'less', 'equal', 'greater', 'question', 'at', 'A', 'B', 'C', 'D', 'E', 'F',
+    'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
+    'V', 'W', 'X', 'Y', 'Z', 'bracketleft', 'backslash', 'bracketright',
+    'asciicircum', 'underscore', 'grave', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
+    'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+    'w', 'x', 'y', 'z', 'braceleft', 'bar', 'braceright', 'asciitilde', '',
+    'Adieresis', 'Aring', 'Ccedilla', 'Eacute', 'Ntilde', 'Odieresis',
+    'Udieresis', 'aacute', 'agrave', 'acircumflex', 'adieresis', 'atilde',
+    'aring', 'ccedilla', 'eacute', 'egrave', 'ecircumflex', 'edieresis',
+    'iacute', 'igrave', 'icircumflex', 'idieresis', 'ntilde', 'oacute',
+    'ograve', 'ocircumflex', 'odieresis', 'otilde', 'uacute', 'ugrave',
+    'ucircumflex', 'udieresis', 'dagger', 'degree', 'cent', 'sterling',
+    'section', 'bullet', 'paragraph', 'germandbls', 'registered', 'copyright',
+    'trademark', 'acute', 'dieresis', 'notequal', 'AE', 'Oslash', 'infinity',
+    'plusminus', 'lessequal', 'greaterequal', 'yen', 'mu', 'partialdiff',
+    'summation', 'product', 'pi', 'integral', 'ordfeminine', 'ordmasculine',
+    'Omega', 'ae', 'oslash', 'questiondown', 'exclamdown', 'logicalnot',
+    'radical', 'florin', 'approxequal', 'Delta', 'guillemotleft',
+    'guillemotright', 'ellipsis', 'space', 'Agrave', 'Atilde', 'Otilde', 'OE',
+    'oe', 'endash', 'emdash', 'quotedblleft', 'quotedblright', 'quoteleft',
+    'quoteright', 'divide', 'lozenge', 'ydieresis', 'Ydieresis', 'fraction',
+    'currency', 'guilsinglleft', 'guilsinglright', 'fi', 'fl', 'daggerdbl',
+    'periodcentered', 'quotesinglbase', 'quotedblbase', 'perthousand',
+    'Acircumflex', 'Ecircumflex', 'Aacute', 'Edieresis', 'Egrave', 'Iacute',
+    'Icircumflex', 'Idieresis', 'Igrave', 'Oacute', 'Ocircumflex', 'apple',
+    'Ograve', 'Uacute', 'Ucircumflex', 'Ugrave', 'dotlessi', 'circumflex',
+    'tilde', 'macron', 'breve', 'dotaccent', 'ring', 'cedilla', 'hungarumlaut',
+    'ogonek', 'caron'],
+  StandardEncoding: ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    'space', 'exclam', 'quotedbl', 'numbersign', 'dollar', 'percent',
+    'ampersand', 'quoteright', 'parenleft', 'parenright', 'asterisk', 'plus',
+    'comma', 'hyphen', 'period', 'slash', 'zero', 'one', 'two', 'three',
+    'four', 'five', 'six', 'seven', 'eight', 'nine', 'colon', 'semicolon',
+    'less', 'equal', 'greater', 'question', 'at', 'A', 'B', 'C', 'D', 'E', 'F',
+    'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
+    'V', 'W', 'X', 'Y', 'Z', 'bracketleft', 'backslash', 'bracketright',
+    'asciicircum', 'underscore', 'quoteleft', 'a', 'b', 'c', 'd', 'e', 'f',
+    'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
+    'v', 'w', 'x', 'y', 'z', 'braceleft', 'bar', 'braceright', 'asciitilde',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'exclamdown',
+    'cent', 'sterling', 'fraction', 'yen', 'florin', 'section', 'currency',
+    'quotesingle', 'quotedblleft', 'guillemotleft', 'guilsinglleft',
+    'guilsinglright', 'fi', 'fl', '', 'endash', 'dagger', 'daggerdbl',
+    'periodcentered', '', 'paragraph', 'bullet', 'quotesinglbase',
+    'quotedblbase', 'quotedblright', 'guillemotright', 'ellipsis',
+    'perthousand', '', 'questiondown', '', 'grave', 'acute', 'circumflex',
+    'tilde', 'macron', 'breve', 'dotaccent', 'dieresis', '', 'ring', 'cedilla',
+    '', 'hungarumlaut', 'ogonek', 'caron', 'emdash', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', 'AE', '', 'ordfeminine', '', '',
+    '', '', 'Lslash', 'Oslash', 'OE', 'ordmasculine', '', '', '', '', '', 'ae',
+    '', '', '', 'dotlessi', '', '', 'lslash', 'oslash', 'oe', 'germandbls'],
+  WinAnsiEncoding: ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    'space', 'exclam', 'quotedbl', 'numbersign', 'dollar', 'percent',
+    'ampersand', 'quotesingle', 'parenleft', 'parenright', 'asterisk', 'plus',
+    'comma', 'hyphen', 'period', 'slash', 'zero', 'one', 'two', 'three',
+    'four', 'five', 'six', 'seven', 'eight', 'nine', 'colon', 'semicolon',
+    'less', 'equal', 'greater', 'question', 'at', 'A', 'B', 'C', 'D', 'E', 'F',
+    'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
+    'V', 'W', 'X', 'Y', 'Z', 'bracketleft', 'backslash', 'bracketright',
+    'asciicircum', 'underscore', 'grave', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
+    'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+    'w', 'x', 'y', 'z', 'braceleft', 'bar', 'braceright', 'asciitilde',
+    'bullet', 'Euro', 'bullet', 'quotesinglbase', 'florin', 'quotedblbase',
+    'ellipsis', 'dagger', 'daggerdbl', 'circumflex', 'perthousand', 'Scaron',
+    'guilsinglleft', 'OE', 'bullet', 'Zcaron', 'bullet', 'bullet', 'quoteleft',
+    'quoteright', 'quotedblleft', 'quotedblright', 'bullet', 'endash',
+    'emdash', 'tilde', 'trademark', 'scaron', 'guilsinglright', 'oe', 'bullet',
+    'zcaron', 'Ydieresis', 'space', 'exclamdown', 'cent', 'sterling',
+    'currency', 'yen', 'brokenbar', 'section', 'dieresis', 'copyright',
+    'ordfeminine', 'guillemotleft', 'logicalnot', 'hyphen', 'registered',
+    'macron', 'degree', 'plusminus', 'twosuperior', 'threesuperior', 'acute',
+    'mu', 'paragraph', 'periodcentered', 'cedilla', 'onesuperior',
+    'ordmasculine', 'guillemotright', 'onequarter', 'onehalf', 'threequarters',
+    'questiondown', 'Agrave', 'Aacute', 'Acircumflex', 'Atilde', 'Adieresis',
+    'Aring', 'AE', 'Ccedilla', 'Egrave', 'Eacute', 'Ecircumflex', 'Edieresis',
+    'Igrave', 'Iacute', 'Icircumflex', 'Idieresis', 'Eth', 'Ntilde', 'Ograve',
+    'Oacute', 'Ocircumflex', 'Otilde', 'Odieresis', 'multiply', 'Oslash',
+    'Ugrave', 'Uacute', 'Ucircumflex', 'Udieresis', 'Yacute', 'Thorn',
+    'germandbls', 'agrave', 'aacute', 'acircumflex', 'atilde', 'adieresis',
+    'aring', 'ae', 'ccedilla', 'egrave', 'eacute', 'ecircumflex', 'edieresis',
+    'igrave', 'iacute', 'icircumflex', 'idieresis', 'eth', 'ntilde', 'ograve',
+    'oacute', 'ocircumflex', 'otilde', 'odieresis', 'divide', 'oslash',
+    'ugrave', 'uacute', 'ucircumflex', 'udieresis', 'yacute', 'thorn',
+    'ydieresis'],
+  symbolsEncoding: ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    'space', 'exclam', 'universal', 'numbersign', 'existential', 'percent',
+    'ampersand', 'suchthat', 'parenleft', 'parenright', 'asteriskmath', 'plus',
+    'comma', 'minus', 'period', 'slash', 'zero', 'one', 'two', 'three', 'four',
+    'five', 'six', 'seven', 'eight', 'nine', 'colon', 'semicolon', 'less',
+    'equal', 'greater', 'question', 'congruent', 'Alpha', 'Beta', 'Chi',
+    'Delta', 'Epsilon', 'Phi', 'Gamma', 'Eta', 'Iota', 'theta1', 'Kappa',
+    'Lambda', 'Mu', 'Nu', 'Omicron', 'Pi', 'Theta', 'Rho', 'Sigma', 'Tau',
+    'Upsilon', 'sigma1', 'Omega', 'Xi', 'Psi', 'Zeta', 'bracketleft',
+    'therefore', 'bracketright', 'perpendicular', 'underscore', 'radicalex',
+    'alpha', 'beta', 'chi', 'delta', 'epsilon', 'phi', 'gamma', 'eta', 'iota',
+    'phi1', 'kappa', 'lambda', 'mu', 'nu', 'omicron', 'pi', 'theta', 'rho',
+    'sigma', 'tau', 'upsilon', 'omega1', 'omega', 'xi', 'psi', 'zeta',
+    'braceleft', 'bar', 'braceright', 'similar', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', 'Euro', 'Upsilon1', 'minute', 'lessequal',
+    'fraction', 'infinity', 'florin', 'club', 'diamond', 'heart', 'spade',
+    'arrowboth', 'arrowleft', 'arrowup', 'arrowright', 'arrowdown', 'degree',
+    'plusminus', 'second', 'greaterequal', 'multiply', 'proportional',
+    'partialdiff', 'bullet', 'divide', 'notequal', 'equivalence',
+    'approxequal', 'ellipsis', 'arrowvertex', 'arrowhorizex', 'carriagereturn',
+    'aleph', 'Ifraktur', 'Rfraktur', 'weierstrass', 'circlemultiply',
+    'circleplus', 'emptyset', 'intersection', 'union', 'propersuperset',
+    'reflexsuperset', 'notsubset', 'propersubset', 'reflexsubset', 'element',
+    'notelement', 'angle', 'gradient', 'registerserif', 'copyrightserif',
+    'trademarkserif', 'product', 'radical', 'dotmath', 'logicalnot',
+    'logicaland', 'logicalor', 'arrowdblboth', 'arrowdblleft', 'arrowdblup',
+    'arrowdblright', 'arrowdbldown', 'lozenge', 'angleleft', 'registersans',
+    'copyrightsans', 'trademarksans', 'summation', 'parenlefttp',
+    'parenleftex', 'parenleftbt', 'bracketlefttp', 'bracketleftex',
+    'bracketleftbt', 'bracelefttp', 'braceleftmid', 'braceleftbt', 'braceex',
+    '', 'angleright', 'integral', 'integraltp', 'integralex', 'integralbt',
+    'parenrighttp', 'parenrightex', 'parenrightbt', 'bracketrighttp',
+    'bracketrightex', 'bracketrightbt', 'bracerighttp', 'bracerightmid',
+    'bracerightbt'],
+  zapfDingbatsEncoding: ['', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    'space', 'a1', 'a2', 'a202', 'a3', 'a4', 'a5', 'a119', 'a118', 'a117',
+    'a11', 'a12', 'a13', 'a14', 'a15', 'a16', 'a105', 'a17', 'a18', 'a19',
+    'a20', 'a21', 'a22', 'a23', 'a24', 'a25', 'a26', 'a27', 'a28', 'a6', 'a7',
+    'a8', 'a9', 'a10', 'a29', 'a30', 'a31', 'a32', 'a33', 'a34', 'a35', 'a36',
+    'a37', 'a38', 'a39', 'a40', 'a41', 'a42', 'a43', 'a44', 'a45', 'a46',
+    'a47', 'a48', 'a49', 'a50', 'a51', 'a52', 'a53', 'a54', 'a55', 'a56',
+    'a57', 'a58', 'a59', 'a60', 'a61', 'a62', 'a63', 'a64', 'a65', 'a66',
+    'a67', 'a68', 'a69', 'a70', 'a71', 'a72', 'a73', 'a74', 'a203', 'a75',
+    'a204', 'a76', 'a77', 'a78', 'a79', 'a81', 'a82', 'a83', 'a84', 'a97',
+    'a98', 'a99', 'a100', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+    '', '', 'a101', 'a102', 'a103', 'a104', 'a106', 'a107', 'a108', 'a112',
+    'a111', 'a110', 'a109', 'a120', 'a121', 'a122', 'a123', 'a124', 'a125',
+    'a126', 'a127', 'a128', 'a129', 'a130', 'a131', 'a132', 'a133', 'a134',
+    'a135', 'a136', 'a137', 'a138', 'a139', 'a140', 'a141', 'a142', 'a143',
+    'a144', 'a145', 'a146', 'a147', 'a148', 'a149', 'a150', 'a151', 'a152',
+    'a153', 'a154', 'a155', 'a156', 'a157', 'a158', 'a159', 'a160', 'a161',
+    'a163', 'a164', 'a196', 'a165', 'a192', 'a166', 'a167', 'a168', 'a169',
+    'a170', 'a171', 'a172', 'a173', 'a162', 'a174', 'a175', 'a176', 'a177',
+    'a178', 'a179', 'a193', 'a180', 'a199', 'a181', 'a200', 'a182', '', 'a201',
+    'a183', 'a184', 'a197', 'a185', 'a194', 'a198', 'a186', 'a195', 'a187',
+    'a188', 'a189', 'a190', 'a191']
 };
 
 /**
@@ -404,6 +390,19 @@ var serifFonts = {
 var symbolsFonts = {
   'Dingbats': true, 'Symbol': true, 'ZapfDingbats': true
 };
+
+// Some characters, e.g. copyrightserif, mapped to the private use area and
+// might not be displayed using standard fonts. Mapping/hacking well-known chars
+// to the similar equivalents in the normal characters range.
+function mapPrivateUseChars(code) {
+  switch (code) {
+    case 0xF8E9: // copyrightsans
+    case 0xF6D9: // copyrightserif
+      return 0x00A9; // copyright
+    default:
+      return code;
+  }
+}
 
 var FontLoader = {
   listeningForFontLoad: false,
@@ -547,7 +546,8 @@ var FontLoader = {
       src += '  window.onload = function fontLoaderOnload() {\n';
       src += '    parent.postMessage(JSON.stringify(fontNames), "*");\n';
       src += '  }';
-      src += '</script></head><body>';
+      // Hack so the end script tag isn't counted if this is inline JS.
+      src += '</scr' + 'ipt></head><body>';
       for (var i = 0, ii = names.length; i < ii; ++i) {
         src += '<p style="font-family:\'' + names[i] + '\'">Hi</p>';
       }
@@ -761,8 +761,8 @@ var Font = (function FontClosure() {
     var names = name.split('+');
     names = names.length > 1 ? names[1] : names[0];
     names = names.split(/[-,_]/g)[0];
-    this.isSerifFont = !!(properties.flags & 2);
-    this.isSymbolicFont = !!(properties.flags & 4);
+    this.isSerifFont = !!(properties.flags & FontFlags.Serif);
+    this.isSymbolicFont = !!(properties.flags & FontFlags.Symbolic);
 
     var type = properties.type;
     this.type = type;
@@ -1526,6 +1526,61 @@ var Font = (function FontClosure() {
         }
       };
 
+      function sanitizeGlyph(source, sourceStart, sourceEnd, dest, destStart) {
+        if (sourceEnd - sourceStart <= 12) {
+          // glyph with data less than 12 is invalid one
+          return 0;
+        }
+        var glyf = source.subarray(sourceStart, sourceEnd);
+        var contoursCount = (glyf[0] << 8) | glyf[1];
+        if (contoursCount & 0x8000) {
+          // complex glyph, writing as is
+          dest.set(glyf, destStart);
+          return glyf.length;
+        }
+
+        var j = 10, flagsCount = 0;
+        for (var i = 0; i < contoursCount; i++) {
+          var endPoint = (glyf[j] << 8) | glyf[j + 1];
+          flagsCount = endPoint + 1;
+          j += 2;
+        }
+        // skipping instructions
+        var instructionsLength = (glyf[j] << 8) | glyf[j + 1];
+        j += 2 + instructionsLength;
+        // validating flags
+        var coordinatesLength = 0;
+        for (var i = 0; i < flagsCount; i++) {
+          var flag = glyf[j++];
+          if (flag & 0xC0) {
+            // reserved flags must be zero, rejecting
+            return 0;
+          }
+          var xyLength = ((flag & 2) ? 1 : (flag & 16) ? 0 : 2) +
+                         ((flag & 4) ? 1 : (flag & 32) ? 0 : 2);
+          coordinatesLength += xyLength;
+          if (flag & 8) {
+            var repeat = glyf[j++];
+            i += repeat;
+            coordinatesLength += repeat * xyLength;
+          }
+        }
+        var glyphDataLength = j + coordinatesLength;
+        if (glyphDataLength > glyf.length) {
+          // not enough data for coordinates
+          return 0;
+        }
+        if (glyf.length - glyphDataLength > 3) {
+          // truncating and aligning to 4 bytes the long glyph data
+          glyphDataLength = (glyphDataLength + 3) & ~3;
+          dest.set(glyf.subarray(0, glyphDataLength), destStart);
+          return glyphDataLength;
+        }
+        // glyph data is fine
+        dest.set(glyf, destStart);
+        return glyf.length;
+      }
+
       function sanitizeGlyphLocations(loca, glyf, numGlyphs,
                                       isGlyphLocationsLong) {
         var itemSize, itemDecode, itemEncode;
@@ -1552,21 +1607,33 @@ var Font = (function FontClosure() {
           };
         }
         var locaData = loca.data;
+        // removing the invalid glyphs
+        var oldGlyfData = glyf.data;
+        var newGlyfData = new Uint8Array(oldGlyfData.length);
         var startOffset = itemDecode(locaData, 0);
-        var firstOffset = itemDecode(locaData, itemSize);
-        if (firstOffset - startOffset < 12 || startOffset > 0) {
-          // removing first glyph
-          glyf.data = glyf.data.subarray(firstOffset);
-          glyf.length -= firstOffset;
-
-          itemEncode(locaData, 0, 0);
-          var i, pos = itemSize;
-          for (i = 1; i <= numGlyphs; ++i) {
-            itemEncode(locaData, pos,
-              itemDecode(locaData, pos) - firstOffset);
-            pos += itemSize;
-          }
+        var writeOffset = 0;
+        itemEncode(locaData, 0, writeOffset);
+        for (var i = 0, j = itemSize; i < numGlyphs; i++, j += itemSize) {
+          var endOffset = itemDecode(locaData, j);
+          var newLength = sanitizeGlyph(oldGlyfData, startOffset, endOffset,
+                                        newGlyfData, writeOffset);
+          writeOffset += newLength;
+          itemEncode(locaData, j, writeOffset);
+          startOffset = endOffset;
         }
+
+        if (writeOffset == 0) {
+          // glyf table cannot be empty -- redoing the glyf and loca tables
+          // to have single glyph with one point
+          var simpleGlyph = new Uint8Array(
+            [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 49, 0]);
+          for (var i = 0, j = itemSize; i < numGlyphs; i++, j += itemSize)
+            itemEncode(locaData, j, simpleGlyph.length);
+          glyf.data = simpleGlyph;
+          return;
+        }
+
+        glyf.data = newGlyfData.subarray(0, writeOffset);
       }
 
       function readGlyphNameMap(post, properties) {
@@ -1794,7 +1861,7 @@ var Font = (function FontClosure() {
             }
           }
           // if it is, replacing with meaningful toUnicode values
-          if (isIdentity) {
+          if (isIdentity && !this.isSymbolicFont) {
             var usedUnicodes = [], unassignedUnicodeItems = [];
             for (var i = 0, ii = glyphs.length; i < ii; i++) {
               var unicode = toUnicode[i + 1];
@@ -1844,6 +1911,16 @@ var Font = (function FontClosure() {
               ids.push(ids[i]);
             }
           }
+        }
+
+        // Moving all symbolic font glyphs into 0xF000 - 0xF0FF range.
+        this.symbolicGlyphsOffset = 0;
+        if (this.isSymbolicFont) {
+          for (var i = 0, ii = glyphs.length; i < ii; i++) {
+            var code = glyphs[i].unicode;
+            glyphs[i].unicode = kSymbolicFontGlyphOffset | (code & 0xFF);
+          }
+          this.symbolicGlyphsOffset = kSymbolicFontGlyphOffset;
         }
 
         // remove glyph references outside range of avaialable glyphs
@@ -2143,6 +2220,9 @@ var Font = (function FontClosure() {
       var styleSheet = styleElement.sheet;
       styleSheet.insertRule(rule, styleSheet.cssRules.length);
 
+      if (PDFJS.pdfBug && FontInspector.enabled)
+        FontInspector.fontAdded(this, url);
+
       return rule;
     },
 
@@ -2186,7 +2266,7 @@ var Font = (function FontClosure() {
         case 'CIDFontType0':
           if (this.noUnicodeAdaptation) {
             width = this.widths[this.unicodeToCID[charcode] || charcode];
-            unicode = charcode;
+            unicode = mapPrivateUseChars(charcode);
             break;
           }
           unicode = this.toUnicode[charcode] || charcode;
@@ -2194,7 +2274,7 @@ var Font = (function FontClosure() {
         case 'CIDFontType2':
           if (this.noUnicodeAdaptation) {
             width = this.widths[this.unicodeToCID[charcode] || charcode];
-            unicode = charcode;
+            unicode = mapPrivateUseChars(charcode);
             break;
           }
           unicode = this.toUnicode[charcode] || charcode;
@@ -2204,7 +2284,7 @@ var Font = (function FontClosure() {
           if (!isNum(width))
             width = this.widths[glyphName];
           if (this.noUnicodeAdaptation) {
-            unicode = GlyphsUnicode[glyphName] || charcode;
+            unicode = mapPrivateUseChars(GlyphsUnicode[glyphName] || charcode);
             break;
           }
           unicode = this.glyphNameMap[glyphName] ||
@@ -2230,7 +2310,8 @@ var Font = (function FontClosure() {
             break;
           }
           if (!this.hasEncoding || this.isSymbolicFont) {
-            unicode = this.useToUnicode ? this.toUnicode[charcode] : charcode;
+            unicode = this.useToUnicode ? this.toUnicode[charcode] :
+              (this.symbolicGlyphsOffset + charcode);
             break;
           }
 
@@ -2593,7 +2674,13 @@ var Type1Parser = function type1Parser() {
     while (str[index++] != ']')
       count++;
 
-    var array = str.substr(start, count).split(' ');
+    str = str.substr(start, count);
+
+    str = str.trim();
+    // Remove adjacent spaces
+    str = str.replace(/\s+/g, ' ');
+
+    var array = str.split(' ');
     for (var i = 0, ii = array.length; i < ii; i++)
       array[i] = parseFloat(array[i] || 0);
     return array;
@@ -3230,7 +3317,9 @@ var Type2CFF = (function Type2CFFClosure() {
     parse: function cff_parse() {
       var header = this.parseHeader();
       var properties = this.properties;
+
       var nameIndex = this.parseIndex(header.endPos);
+      this.sanitizeName(nameIndex);
 
       var dictIndex = this.parseIndex(nameIndex.endPos);
       if (dictIndex.length != 1)
@@ -3594,10 +3683,43 @@ var Type2CFF = (function Type2CFFClosure() {
             dict['cidOperatorPresent'] = true;
             break;
           default:
-            TODO('interpret top dict key');
+            TODO('interpret top dict key: ' + key);
         }
       }
       return dict;
+    },
+    sanitizeName: function cff_sanitizeName(nameIndex) {
+      // There should really only be one font, but loop to make sure.
+      for (var i = 0, ii = nameIndex.length; i < ii; ++i) {
+        var data = nameIndex.get(i).data;
+        var length = data.length;
+        if (length > 127)
+          warn('Font had name longer than 127 chars, will be rejected.');
+        // Only certain chars are permitted in the font name.
+        for (var j = 0; j < length; ++j) {
+          var c = data[j];
+          if (j === 0 && c === 0)
+            continue;
+          if (c < 33 || c > 126) {
+            data[j] = 95;
+            continue;
+          }
+          switch (c) {
+            case 91:  // [
+            case 93:  // ]
+            case 40:  // (
+            case 41:  // )
+            case 123: // {
+            case 125: // }
+            case 60:  // <
+            case 62:  // >
+            case 47:  // /
+            case 37:  // %
+              data[j] = 95;
+              break;
+          }
+        }
+      }
     },
     getStrings: function cff_getStrings(stringIndex) {
       function bytesToString(bytesArray) {
